@@ -8,6 +8,11 @@ ENCRYPT_KEYS=" "
 
 
 
+mkdir -p circle1
+cp -r conf circle1/
+cd circle1
+export ORGA="Bieling"
+
 echo
 echo "====== Creating root mail CA ======"
 createCA "root-email"
@@ -81,4 +86,58 @@ echo
 signCertificate "email" "test.hazelnut4.nuts"
 
 
+echo
+echo
+echo
+echo
+echo "====== Creating second 'circle' ======"
+echo "======================================"
+cd -
+mkdir -p circle2
+cp -r conf circle2/
+cd circle2
+export ORGA="Second"
 
+echo
+echo
+echo
+
+echo
+echo "====== Creating root mail CA ======"
+createCA "root-email"
+
+echo
+echo "====== Self-signing root mail CA ======"
+selfsignCA "root-email"
+
+echo
+echo "====== Creating CRL for root mail CA ======"
+createCRL "root-email"
+
+echo
+echo
+echo
+
+echo
+echo "====== Creating second mail CA ======"
+createCA "email"
+
+echo
+echo "====== Signing second mail CA with root mail CA ======"
+signCA "email" "root-email"
+
+echo
+echo "====== Creating CRL for second mail CA ======"
+createCRL "email"
+
+echo
+echo
+echo
+
+echo
+echo "====== Creating email client key 'rike' ======"
+createClientKey "email" "rike"
+
+echo
+echo "====== Signing email client certificate 'rike' ======"
+signCertificate "email" "rike" "Rike Second"
