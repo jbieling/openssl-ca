@@ -141,3 +141,25 @@ createClientKey "email" "rike"
 echo
 echo "====== Signing email client certificate 'rike' ======"
 signCertificate "email" "rike" "Rike Second"
+
+
+
+
+echo
+echo
+echo
+
+echo
+echo "====== Cross-sign circle1 and circle2 ======"
+cd -
+
+cp circle1/ca/email.csr circle2/ca/email1.csr
+cd circle2
+signCA "email1" "root-email"
+cd ..
+
+cp circle2/ca/email.csr circle1/ca/email2.csr
+cd circle1
+signCA "email2" "root-email"
+cd ..
+
