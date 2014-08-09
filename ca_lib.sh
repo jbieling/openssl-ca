@@ -127,7 +127,7 @@ function selfsignCA()
     if [[ ! -s "$outFile" ]]; then
         # File is zero-sized!
         echo "Error: certificate file not created"
-        rm -r "$outFile"
+        rm -f "$outFile"
         return 1
     fi
 }
@@ -179,7 +179,7 @@ function signCA()
     if [[ ! -s "$outFile" ]]; then
         # File is zero-sized!
         echo "Error: certificate file not signed"
-        rm -r "$outFile"
+        rm -f "$outFile"
         return 1
     fi
 
@@ -317,7 +317,7 @@ function signCertificate()
     if [[ ! -s "$outFile" ]]; then
         # File is zero-sized!
         echo "Error: certificate file not signed"
-        rm -r "$outFile"
+        rm -f "$outFile"
         return 1
     fi
 
