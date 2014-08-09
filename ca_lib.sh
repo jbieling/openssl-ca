@@ -7,8 +7,18 @@
 [ -z "$CRL_ROOT" ] && CRL_ROOT=./crl
 
 [ -z "$CERT_ROOT"       ] && CERT_ROOT=./cert
+[ -z "$CA_KEYSIZE"      ] && CA_KEYSIZE=4096
 [ -z "$DEFAULT_KEYSIZE" ] && DEFAULT_KEYSIZE=4096
 [ -z "$ENCRYPT_KEYS"    ] && ENCRYPT_KEYS=-aes256
+
+
+echo "Setting up ca_lib."
+echo ""
+echo "Please define ORGA and CA_KEYSIZE before creating any"
+echo "certificate authorities."
+echo "You may specify the key length of client certificates by"
+echo "defining DEFAULT_KEYSIZE."
+echo ""
 
 
 # Prints all functions and their documentation.
