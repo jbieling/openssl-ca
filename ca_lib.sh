@@ -1,7 +1,7 @@
 #!/bin/bash
 
 
-# Set variables, if they have not been set yet
+#! Set variables, if they have not been set yet
 [ -z "$CNF_ROOT" ] && CNF_ROOT=./conf
 [ -z "$CA_ROOT"  ] && CA_ROOT=./ca
 [ -z "$CRL_ROOT" ] && CRL_ROOT=./crl
@@ -10,6 +10,18 @@
 [ -z "$DEFAULT_KEYSIZE" ] && DEFAULT_KEYSIZE=4096
 [ -z "$ENCRYPT_KEYS"    ] && ENCRYPT_KEYS=-aes256
 
+
+# Prints all functions and their documentation.
+function cahelp()
+{
+    local self="${BASH_SOURCE[0]}"
+    echo
+    cat "$self" | tail -n +3 |
+        sed -E '/^\{/,/^\}/d' |     # remove function bodies
+        sed -E '/^(\[|\#\!)/d' |    # remove the variable section
+        sed -nE '/./,/^$/p'         # remove duplicate blank lines
+    echo
+}
 
 
 # Create a new CA key and create the necessary database structure. If the
@@ -28,32 +40,43 @@
 function createCA()
 {
     local caName=$1
-    local outFile=$CA_ROOT/$caName/private/$caName.key
+    local caConf="$CNF_ROOT/ca.$caName.conf"
+    local outFile="$CA_ROOT/$caName/private/$caName.key"
 
-    if [[ -f "$outFile" ]]; then
+    if [[ $# -ne 1 ]]; then
+        echo "Usage: $0 caName"
+        echo ""
+        echo "Run 'cahelp' for a documentation on all available functions"
+        return 1
+    elif [[ ! -f "$caConf" ]]; then
+        echo "Error: the CA configuration '$caConf' does not exist"
+        return 1
+    elif [[ -f "$outFile" ]]; then
         echo "Error: private key file for CA '$caName' already exists"
         return 1
     fi
 
     # Create directories
-    mkdir -p $CA_ROOT/$caName/private $CA_ROOT/$caName/db
-    chmod 700 $CA_ROOT/$caName/private
+    mkdir -p "$CA_ROOT/$caName/private" "$CA_ROOT/$caName/db"
+    chmod 700 "$CA_ROOT/$caName/private"
 
 
     # Create database
-    cp /dev/null $CA_ROOT/$caName/db/$caName.db
-    cp /dev/null $CA_ROOT/$caName/db/$caName.db.attr
-    echo 01 > $CA_ROOT/$caName/db/$caName.crt.srl
-    echo 01 > $CA_ROOT/$caName/db/$caName.crl.srl
+    cp /dev/null "$CA_ROOT/$caName/db/$caName.db"
+    cp /dev/null "$CA_ROOT/$caName/db/$caName.db.attr"
+    echo 01 > "$CA_ROOT/$caName/db/$caName.crt.srl"
+    echo 01 > "$CA_ROOT/$caName/db/$caName.crl.srl"
 
 
     # Create CA request
-    openssl req -new -config $CNF_ROOT/ca.$caName.conf -out $CA_ROOT/$caName.csr -keyout "$outFile"
+    openssl req -new -config "$caConf" -out "$CA_ROOT/$caName.csr" -keyout "$outFile"
 }
 
 # Sign an existing CA certificate with its own private key. The signed
 # certificate is placed directly under ca/. If the certificate already
 # exists, the process will be aborted.
+#
+# The signed certificate will be valid for 10 years (3650 days).
 #
 # This function expects a OpenSSL configuration file to exist with the
 # name conf/ca.[caName].conf.
@@ -65,15 +88,27 @@ function createCA()
 function selfsignCA()
 {
     local caName=$1
+    local caConf="$CNF_ROOT/ca.$caName.conf"
     local outFile=$CA_ROOT/$caName.crt
 
-    if [[ -f "$outFile" ]]; then
+    if [[ $# -ne 1 ]]; then
+        echo "Usage: $0 caName"
+        echo ""
+        echo "Run 'cahelp' for a documentation on all available functions"
+        return 1
+    elif [[ ! -f "$caConf" ]]; then
+        echo "Error: the CA configuration '$caConf' does not exist"
+        return 1
+    elif [[ -f "$outFile" ]]; then
         echo "Error: certificate file for CA '$caName' already exists"
+        return 1
+    elif [[ ! -f "$CA_ROOT/$caName.csr" ]]; then
+        echo "Error: certificate signing request for CA '$caName' does not exist"
         return 1
     fi
 
     # Create CA certificate
-    openssl ca -selfsign -config $CNF_ROOT/ca.$caName.conf -in $CA_ROOT/$caName.csr -out "$outFile" -extensions root_ca_ext -days 3650
+    openssl ca -selfsign -config "$caConf" -in "$CA_ROOT/$caName.csr" -out "$outFile" -extensions root_ca_ext -days 3650
 
     if [[ ! -s "$outFile" ]]; then
         # File is zero-sized!
@@ -100,21 +135,31 @@ function signCA()
 {
     local caName=$1
     local parentCaName=$2
-    local outFile=$CA_ROOT/$caName.crt
-    local outChainFile=$CA_ROOT/$caName-chain.crt
+    local parentCaConf="$CNF_ROOT/ca.$parentCaName.conf"
+    local outFile="$CA_ROOT/$caName.crt"
+    local outChainFile="$CA_ROOT/$caName-chain.crt"
 
-    if [[ -f "$outFile" ]]; then
+    if [[ $# -ne 2 ]]; then
+        echo "Usage: $0 caName parentCaName"
+        echo ""
+        echo "Run 'cahelp' for a documentation on all available functions"
+        return 1
+    elif [[ ! -f "$parentCaConf" ]]; then
+        echo "Error: the CA configuration '$parentCaConf' does not exist"
+        return 1
+    elif [[ -f "$outFile" ]]; then
         echo "Error: certificate file for CA '$caName' already exists"
         return 1
-    fi
-
-    if [[ -f "$outChainFile" ]]; then
+    elif [[ -f "$outChainFile" ]]; then
         echo "Error: certificate chain file for CA '$caName' already exists"
+        return 1
+    elif [[ ! -f "$CA_ROOT/$caName.csr" ]]; then
+        echo "Error: certificate signing request for CA '$caName' does not exist"
         return 1
     fi
 
     # Create CA certificate
-    openssl ca -config $CNF_ROOT/ca.$parentCaName.conf -in $CA_ROOT/$caName.csr -out "$outFile" -extensions signing_ca_ext
+    openssl ca -config "$parentCaConf" -in "$CA_ROOT/$caName.csr" -out "$outFile" -extensions signing_ca_ext
 
     if [[ ! -s "$outFile" ]]; then
         # File is zero-sized!
@@ -124,7 +169,7 @@ function signCA()
     fi
 
     # Create PEM bundle
-    cat $outFile $CA_ROOT/$parentCaName.crt > $outChainFile
+    cat "$outFile" "$CA_ROOT/$parentCaName.crt" > "$outChainFile"
 }
 
 
@@ -141,17 +186,26 @@ function signCA()
 function createCRL()
 {
     local caName=$1
-    local outFile=$CRL_ROOT/$caName.crl
+    local caConf="$CNF_ROOT/ca.$caName.conf"
+    local outFile="$CRL_ROOT/$caName.crl"
 
-    if [[ -f "$outFile" ]]; then
+    if [[ $# -ne 1 ]]; then
+        echo "Usage: $0 caName"
+        echo ""
+        echo "Run 'cahelp' for a documentation on all available functions"
+        return 1
+    elif [[ ! -f "$caConf" ]]; then
+        echo "Error: the CA configuration '$caConf' does not exist"
+        return 1
+    elif [[ -f "$outFile" ]]; then
         echo "Error: certificate revocation list for CA '$caName' already exists"
         return 1
     fi
 
-    mkdir -p $CRL_ROOT
+    mkdir -p "$CRL_ROOT"
 
     # Create initial CRL
-    openssl ca -gencrl -config $CNF_ROOT/ca.$caName.conf -out "$outFile"
+    openssl ca -gencrl -config "$caConf" -out "$outFile"
 }
 
 
@@ -171,22 +225,33 @@ function createCRL()
 function createClientKey()
 {
     local caName=$1
+    local caConf="$CNF_ROOT/req.$caName.conf"
     local certName=$2
-    local outFile=$CERT_ROOT/$certName.pem
+    local outKey=$CERT_ROOT/$certName.pem
+    local outCsr=$CERT_ROOT/$certName.csr
 
-    if [[ -f "$outFile" ]]; then
+    if [[ $# -ne 2 ]]; then
+        echo "Usage: $0 caName certName"
+        echo ""
+        echo "Run 'cahelp' for a documentation on all available functions"
+        return 1
+    elif [[ ! -f "$caConf" ]]; then
+        echo "Error: the CA configuration '$caConf' does not exist"
+        return 1
+    elif [[ -f "$outFile" ]]; then
         echo "Error: client key '$certName' already exists"
         return 1
     fi
 
-    mkdir -p $CERT_ROOT
+    mkdir -p "$CERT_ROOT"
 
-    openssl genrsa $ENCRYPT_KEYS -out "$outFile" $DEFAULT_KEYSIZE
+    openssl genrsa $ENCRYPT_KEYS -out "$outKey" $DEFAULT_KEYSIZE
 
-    openssl req -new -config $CNF_ROOT/req.$caName.conf -key $CERT_ROOT/$certName.pem -out $CERT_ROOT/$certName.csr
+    openssl req -new -config "$caConf" -key "$outKey" -out "$outCsr"
 }
 
-# Sign an existing client key using a specified CA.
+# Sign an existing client key using a specified CA. If any certificates
+# or certificate bundles already exist, the process will be aborted.
 #
 # This function expects an OpenSSL configuration file (of the CA to be
 # used for signing) to exist with the name conf/ca.[caName].conf
@@ -199,29 +264,37 @@ function createClientKey()
 function signCertificate()
 {
     local caName=$1
+    local caConf="$CNF_ROOT/ca.$caName.conf"
     local certName=$2
     local name=$3
-    local outFile=$CERT_ROOT/$certName.crt
-    local outPKCSBundleFile=$CERT_ROOT/$certName.p12
-    local outPEMBundleFile=$CERT_ROOT/$certName.key+crt
+    local outFile="$CERT_ROOT/$certName.crt"
+    local outPKCSBundleFile="$CERT_ROOT/$certName.p12"
+    local outPEMBundleFile="$CERT_ROOT/$certName.key+crt"
 
-    if [[ -f "$outFile" ]]; then
+    if [[ $# -ne 3 ]]; then
+        echo "Usage: $0 caName certName name"
+        echo ""
+        echo "Run 'cahelp' for a documentation on all available functions"
+        return 1
+    elif [[ ! -f "$caConf" ]]; then
+        echo "Error: the CA configuration '$caConf' does not exist"
+        return 1
+    elif [[ -f "$outFile" ]]; then
         echo "Error: client certificate '$certName' already exists"
         return 1
-    fi
-
-    if [[ -f "$outPKCSBundleFile" ]]; then
+    elif [[ -f "$outPKCSBundleFile" ]]; then
         echo "Error: client certificate PKCS#12 bundle '$certName' already exists"
         return 1
-    fi
-
-    if [[ -f "$outPEMBundleFile" ]]; then
+    elif [[ -f "$outPEMBundleFile" ]]; then
         echo "Error: client certificate PEM bundle '$certName' already exists"
+        return 1
+    elif [[ ! -f "$CA_ROOT/$certName.csr" ]]; then
+        echo "Error: certificate signing request for '$certName' does not exist"
         return 1
     fi
 
     # Create certificate
-    openssl ca -config $CNF_ROOT/ca.$caName.conf -in $CERT_ROOT/$certName.csr -out "$outFile" -extensions ${caName}_ext
+    openssl ca -config "$caConf" -in "$CERT_ROOT/$certName.csr" -out "$outFile" -extensions ${caName}_ext
 
     if [[ ! -s "$outFile" ]]; then
         # File is zero-sized!
@@ -231,10 +304,10 @@ function signCertificate()
     fi
 
     # Create PKCS#12 bundle
-    openssl pkcs12 -export -inkey $CERT_ROOT/$certName.pem -in $CERT_ROOT/$certName.crt -certfile $CA_ROOT/$caName-chain.crt -out $outPKCSBundleFile -name "$name"
+    openssl pkcs12 -export -inkey "$CERT_ROOT/$certName.pem" -in "$outFile" -certfile "$CA_ROOT/$caName-chain.crt" -out "$outPKCSBundleFile" -name "$name"
 
     # Create PEM bundle
-    cat $CERT_ROOT/$certName.pem $outFile > $outPEMBundleFile
+    cat "$CERT_ROOT/$certName.pem" "$outFile" > "$outPEMBundleFile"
 }
 
 # Revoke an existing client certificate that was previously signed by a
@@ -251,11 +324,25 @@ function signCertificate()
 function revokeCertificate()
 {
     local caName=$1
+    local caConf="$CNF_ROOT/ca.$caName.conf"
     local certNumber=$2
 
+    if [[ $# -ne 2 ]]; then
+        echo "Usage: $0 caName certNumber"
+        echo ""
+        echo "Run 'cahelp' for a documentation on all available functions"
+        return 1
+    elif [[ ! -f "$caConf" ]]; then
+        echo "Error: the CA configuration '$caConf' does not exist"
+        return 1
+    elif [[ ! -f "$CA_ROOT/$caName/$certNumber.pem" ]]; then
+        echo "Error: certificate number '$certNumber' does not exist"
+        return 1
+    fi
+
     # Revoke certificate
-    openssl ca -config $CNF_ROOT/ca.$caName.conf -revoke $CA_ROOT/$caName/$certNumber.pem -crl_reason keyCompromise
+    openssl ca -config "$caConf" -revoke "$CA_ROOT/$caName/$certNumber.pem" -crl_reason keyCompromise
 
     # Create CRL
-    openssl ca -gencrl -config $CNF_ROOT/ca.$caName.conf -out $CRL_ROOT/$caName.crl
+    openssl ca -gencrl -config "$caConf" -out "$CRL_ROOT/$caName.crl"
 }
