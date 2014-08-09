@@ -15,14 +15,25 @@
 function cahelp()
 {
     local self="${BASH_SOURCE[0]}"
-    echo
-    cat "$self" | tail -n +3 |
-        sed -E '/^\{/,/^\}/d' |     # remove function bodies
-        sed -E '/^(\[|\#\!)/d' |    # remove the variable section
-        sed -nE '/./,/^$/p'         # remove duplicate blank lines
+
+    if [[ $# -eq 1 ]]; then
+        echo "Documentation for $1:"
+        cat "$self" | tail -n +3 |
+            sed -E '/^\{/,/^\}/d' |     # remove function bodies
+            sed -E '/^(\[|\#\!)/d' |    # remove the variable section
+            sed -nE '/./,/^$/p' |       # remove duplicate blank lines
+            sed -nE "/^#/,/^$/{ H; /function $1/{g; p; q;}; /^$/x;};" |     # extract specific function
+            sed -nE "/^function $1/d; /^$/d; s/^#([ ]?.*)$/  \1/;p"         # remove function head and hashes (#)
+    else
+        echo
+        cat "$self" | tail -n +3 |
+            sed -E '/^\{/,/^\}/d' |     # remove function bodies
+            sed -E '/^(\[|\#\!)/d' |    # remove the variable section
+            sed -nE '/./,/^$/p'         # remove duplicate blank lines
+    fi
+
     echo
 }
-
 
 # Create a new CA key and create the necessary database structure. If the
 # CA key already exists, the process will be aborted.
@@ -44,8 +55,9 @@ function createCA()
     local outFile="$CA_ROOT/$caName/private/$caName.key"
 
     if [[ $# -ne 1 ]]; then
-        echo "Usage: $0 caName"
+        echo "Usage: ${FUNCNAME[0]} caName"
         echo ""
+        cahelp createCA
         echo "Run 'cahelp' for a documentation on all available functions"
         return 1
     elif [[ ! -f "$caConf" ]]; then
@@ -72,6 +84,7 @@ function createCA()
     openssl req -new -config "$caConf" -out "$CA_ROOT/$caName.csr" -keyout "$outFile"
 }
 
+
 # Sign an existing CA certificate with its own private key. The signed
 # certificate is placed directly under ca/. If the certificate already
 # exists, the process will be aborted.
@@ -92,8 +105,9 @@ function selfsignCA()
     local outFile=$CA_ROOT/$caName.crt
 
     if [[ $# -ne 1 ]]; then
-        echo "Usage: $0 caName"
+        echo "Usage: ${FUNCNAME[0]} caName"
         echo ""
+        cahelp selfsignCA
         echo "Run 'cahelp' for a documentation on all available functions"
         return 1
     elif [[ ! -f "$caConf" ]]; then
@@ -140,8 +154,9 @@ function signCA()
     local outChainFile="$CA_ROOT/$caName-chain.crt"
 
     if [[ $# -ne 2 ]]; then
-        echo "Usage: $0 caName parentCaName"
+        echo "Usage: ${FUNCNAME[0]} caName parentCaName"
         echo ""
+        cahelp signCA
         echo "Run 'cahelp' for a documentation on all available functions"
         return 1
     elif [[ ! -f "$parentCaConf" ]]; then
@@ -190,8 +205,9 @@ function createCRL()
     local outFile="$CRL_ROOT/$caName.crl"
 
     if [[ $# -ne 1 ]]; then
-        echo "Usage: $0 caName"
+        echo "Usage: ${FUNCNAME[0]} caName"
         echo ""
+        cahelp createCRL
         echo "Run 'cahelp' for a documentation on all available functions"
         return 1
     elif [[ ! -f "$caConf" ]]; then
@@ -231,8 +247,9 @@ function createClientKey()
     local outCsr=$CERT_ROOT/$certName.csr
 
     if [[ $# -ne 2 ]]; then
-        echo "Usage: $0 caName certName"
+        echo "Usage: ${FUNCNAME[0]} caName certName"
         echo ""
+        cahelp createClientKey
         echo "Run 'cahelp' for a documentation on all available functions"
         return 1
     elif [[ ! -f "$caConf" ]]; then
@@ -272,8 +289,9 @@ function signCertificate()
     local outPEMBundleFile="$CERT_ROOT/$certName.key+crt"
 
     if [[ $# -ne 3 ]]; then
-        echo "Usage: $0 caName certName name"
+        echo "Usage: ${FUNCNAME[0]} caName certName name"
         echo ""
+        cahelp signCertificate
         echo "Run 'cahelp' for a documentation on all available functions"
         return 1
     elif [[ ! -f "$caConf" ]]; then
@@ -328,8 +346,9 @@ function revokeCertificate()
     local certNumber=$2
 
     if [[ $# -ne 2 ]]; then
-        echo "Usage: $0 caName certNumber"
+        echo "Usage: ${FUNCNAME[0]} caName certNumber"
         echo ""
+        cahelp revokeCertificate
         echo "Run 'cahelp' for a documentation on all available functions"
         return 1
     elif [[ ! -f "$caConf" ]]; then
