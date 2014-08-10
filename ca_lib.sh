@@ -2,16 +2,17 @@
 
 
 #! Set variables, if they have not been set yet
-[ -z "$CNF_ROOT" ] && CNF_ROOT=./conf
-[ -z "$CA_ROOT"  ] && CA_ROOT=./ca
-[ -z "$CRL_ROOT" ] && CRL_ROOT=./crl
+[ -z "$CNF_ROOT" ] && export CNF_ROOT=./conf
+[ -z "$CA_ROOT"  ] && export CA_ROOT=./ca
+[ -z "$CRL_ROOT" ] && export CRL_ROOT=./crl
 
-[ -z "$CERT_ROOT"       ] && CERT_ROOT=./cert
-[ -z "$CA_KEYSIZE"      ] && CA_KEYSIZE=4096
-[ -z "$DEFAULT_KEYSIZE" ] && DEFAULT_KEYSIZE=4096
-[ -z "$ENCRYPT_KEYS"    ] && ENCRYPT_KEYS=-aes256
+[ -z "$CERT_ROOT"       ] && export CERT_ROOT=./cert
+[ -z "$CA_KEYSIZE"      ] && export CA_KEYSIZE=4096
+[ -z "$DEFAULT_KEYSIZE" ] && export DEFAULT_KEYSIZE=4096
+[ -z "$ENCRYPT_KEYS"    ] && export ENCRYPT_KEYS=-aes256
 
 
+echo ""
 echo "Setting up ca_lib."
 echo ""
 echo "Please define ORGA before creating any certificate authorities. It is"
@@ -31,6 +32,8 @@ echo "  default_crl_days  Specifies how long the certificate revocation list"
 echo "                    is valid. The shorter, the more often you must"
 echo "                    update. The longer, the more likely revocations will"
 echo "                    slip through unnoticed at some point."
+echo ""
+echo "The current time (used for certificate expiry) is: " `date`
 echo ""
 
 
