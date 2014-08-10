@@ -14,10 +14,14 @@
 
 echo "Setting up ca_lib."
 echo ""
-echo "Please define ORGA and CA_KEYSIZE before creating any"
-echo "certificate authorities."
-echo "You may specify the key length of client certificates by"
-echo "defining DEFAULT_KEYSIZE."
+echo "Please define ORGA before creating any certificate authorities. It"
+echo "is used for the organisation field of all certificates."
+echo ""
+echo "You may specify the key size of certificates by defining CA_KEYSIZE"
+echo "and DEFAULT_KEYSIZE. The former sets the key size for certificates"
+echo "of certificate authorities (currently $CA_KEYSIZE), the latter defines the"
+echo "key size for client certificates (currently $DEFAULT_KEYSIZE). Note that"
+echo "CA_KEYSIZE >= DEFAULT_KEYSIZE should hold (think 'weakest link')."
 echo ""
 
 
@@ -27,7 +31,6 @@ function cahelp()
     local self="${BASH_SOURCE[0]}"
 
     if [[ $# -eq 1 ]]; then
-        echo "Documentation for $1:"
         cat "$self" | tail -n +3 |
             sed -E '/^\{/,/^\}/d' |     # remove function bodies
             sed -E '/^(\[|\#\!)/d' |    # remove the variable section
