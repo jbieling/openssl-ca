@@ -9,7 +9,11 @@
 [ -z "$CERT_ROOT"       ] && export CERT_ROOT=./cert
 [ -z "$CA_KEYSIZE"      ] && export CA_KEYSIZE=4096
 [ -z "$DEFAULT_KEYSIZE" ] && export DEFAULT_KEYSIZE=4096
+[ -z "$DEFAULT_EXPIRY_YEARS" ] && export DEFAULT_EXPIRY_YEARS=2
 [ -z "$ENCRYPT_KEYS"    ] && export ENCRYPT_KEYS=-aes256
+
+[ -z "$START_DATE"    ] && START_DATE=
+[ -z "$END_DATE"    ] && END_DATE=
 
 
 echo ""
@@ -24,17 +28,13 @@ echo "certificate authorities (currently $CA_KEYSIZE), the latter defines the"
 echo "key size for client certificates (currently $DEFAULT_KEYSIZE). Note that"
 echo "CA_KEYSIZE >= DEFAULT_KEYSIZE should hold (think 'weakest link')."
 echo ""
-echo "You may want to modify some fields in the CA configurations:"
-echo "  default_days      Specifies how long the signature on a certificate is"
-echo "                    valid. After that, the certificate automatically"
-echo "                    expires (and becomes invalid)."
+echo "You may want to modify the CRL expiry fields in the CA configurations:"
 echo "  default_crl_days  Specifies how long the certificate revocation list"
 echo "                    is valid. The shorter, the more often you must"
 echo "                    update. The longer, the more likely revocations will"
 echo "                    slip through unnoticed at some point."
 echo ""
-echo "The current time (used for certificate expiry) is: " `date`
-echo ""
+
 
 
 # Prints all functions and their documentation.
@@ -59,6 +59,34 @@ function cahelp()
 
     echo
 }
+
+function setCertValidity()
+{
+    local inputStartDate=""
+    local inputEndDate=""
+
+    local inputStartYY=
+    local inputStartMM=
+    local inputStartDD=
+
+    while [[ ! "${START_DATE}" =~ ^([0-9][0-9])(0[0-9]|1[012])([012][0-9]|3[01])$ ]]; do
+        read -p "Not valid before (YYMMDD) [${START_DATE}]: " inputStartDate
+        START_DATE=${inputStartDate:-$START_DATE}
+    done
+
+    inputStartYY=${BASH_REMATCH[1]}
+    inputStartMM=${BASH_REMATCH[2]}
+    inputStartDD=${BASH_REMATCH[3]}
+
+    while [[ ! "${inputEndDate}" =~ ^([0-9][0-9])(0[0-9]|1[012])([012][0-9]|3[01])$ || $END_DATE -lt $START_DATE ]]; do
+        END_DATE=$((inputStartYY+DEFAULT_EXPIRY_YEARS))
+        END_DATE="$END_DATE$inputStartMM$inputStartDD"
+
+        read -p "Not valid after (YYMMDD) [${END_DATE}]: " inputEndDate
+        END_DATE=${inputEndDate:-$END_DATE}
+    done
+}
+setCertValidity
 
 # Create a new CA key and create the necessary database structure. If the
 # CA key already exists, the process will be aborted.
@@ -103,7 +131,6 @@ function createCA()
     cp /dev/null "$CA_ROOT/$caName/db/$caName.db.attr"
     echo 01 > "$CA_ROOT/$caName/db/$caName.crt.srl"
     echo 01 > "$CA_ROOT/$caName/db/$caName.crl.srl"
-
 
     # Create CA request
     openssl req -new -config "$caConf" -out "$CA_ROOT/$caName.csr" -keyout "$outFile"
@@ -198,8 +225,10 @@ function signCA()
         return 1
     fi
 
+    setCertValidity
+
     # Create CA certificate
-    openssl ca -config "$parentCaConf" -in "$CA_ROOT/$caName.csr" -out "$outFile" -extensions signing_ca_ext
+    openssl ca -config "$parentCaConf" -in "$CA_ROOT/$caName.csr" -out "$outFile" -extensions signing_ca_ext -startdate "${START_DATE}000000Z}" -enddate "${END_DATE}235959Z"
 
     if [[ ! -s "$outFile" ]]; then
         # File is zero-sized!
@@ -336,8 +365,10 @@ function signCertificate()
         return 1
     fi
 
+    setCertValidity
+
     # Create certificate
-    openssl ca -config "$caConf" -in "$CERT_ROOT/$certName.csr" -out "$outFile" -extensions ${caName}_ext
+    openssl ca -config "$caConf" -in "$CERT_ROOT/$certName.csr" -out "$outFile" -extensions ${caName}_ext -startdate "${START_DATE}000000Z}" -enddate "${END_DATE}235959Z"
 
     if [[ ! -s "$outFile" ]]; then
         # File is zero-sized!
