@@ -352,7 +352,7 @@ function signCertificate()
     local outFile="$CERT_ROOT/$certName.crt"
     local outPEMBundleFile="$CERT_ROOT/$certName.key+crt"
 
-    if [[ $# -ne 3 ]]; then
+    if [[ $# -ne 2 ]]; then
         echo "Usage: ${FUNCNAME[0]} certName caName"
         echo ""
         cahelp signCertificate
