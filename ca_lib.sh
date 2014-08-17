@@ -342,20 +342,18 @@ function createClientKey()
 #
 # @param certName The name of the certificate signing request (without
 #                 extension)
-# @param name     The name of the owner to create the certificate for.
 # @param caName   The name of the CA to be used for signing.
 #
 function signCertificate()
 {
     local certName="$1"
-    local name="$2"
-    local caName="$3"
+    local caName="$2"
     local caConf="$CNF_ROOT/ca.$caName.conf"
     local outFile="$CERT_ROOT/$certName.crt"
     local outPEMBundleFile="$CERT_ROOT/$certName.key+crt"
 
     if [[ $# -ne 3 ]]; then
-        echo "Usage: ${FUNCNAME[0]} certName name caName"
+        echo "Usage: ${FUNCNAME[0]} certName caName"
         echo ""
         cahelp signCertificate
         echo "Run 'cahelp' for a documentation on all available functions"
@@ -445,9 +443,9 @@ function createPKCS12()
 
     # Create PKCS#12 bundle
     if [[ -f "$caCertChain" ]]; then
-        openssl pkcs12 -export -inkey "$certKey" -in "$certFile" -certfile "$CA_ROOT/$caName-chain.crt" -out "$outPKCSBundleFile" -name "$name"
+        openssl pkcs12 -export -inkey "$certKey" -in "$certFile" -certfile "$CA_ROOT/$caName-chain.crt" -out "$outPKCSBundleFile"
     else
-        openssl pkcs12 -export -inkey "$certKey" -in "$certFile" -out "$outPKCSBundleFile" -name "$name"
+        openssl pkcs12 -export -inkey "$certKey" -in "$certFile" -out "$outPKCSBundleFile"
     fi
 }
 
