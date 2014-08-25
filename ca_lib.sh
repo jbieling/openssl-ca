@@ -190,6 +190,8 @@ function selfsignCA()
         return 1
     fi
 
+    setCertValidity
+
     # Create CA certificate
     openssl ca -selfsign -config "$caConf" -in "$CA_ROOT/$caName.csr" -out "$outFile" -extensions root_ca_ext -startdate "${START_DATE}000000Z" -enddate "${END_DATE}235959Z"
 
