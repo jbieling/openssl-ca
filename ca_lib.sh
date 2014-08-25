@@ -155,8 +155,8 @@ function createCA()
 
 
 # Sign an existing CA certificate with its own private key. The signed
-# certificate is placed directly under ca/. If the certificate already
-# exists, the process will be aborted.
+# certificate is placed directly under ca/ (in PEM and DER format). If
+# the certificate already exists, the process will be aborted.
 #
 # The signed certificate will be valid for 10 years (3650 days).
 #
@@ -172,6 +172,7 @@ function selfsignCA()
     local caName="$1"
     local caConf="$CNF_ROOT/ca.$caName.conf"
     local outFile="$CA_ROOT/$caName.crt"
+    local outFileDER="$CA_ROOT/$caName.cer"
 
     if [[ $# -ne 1 ]]; then
         echo "Usage: ${FUNCNAME[0]} caName"
@@ -184,6 +185,9 @@ function selfsignCA()
         return 1
     elif [[ -f "$outFile" ]]; then
         echo "Error: certificate file for CA '$caName' already exists"
+        return 1
+    elif [[ -f "$outFileDER" ]]; then
+        echo "Error: certificate file for CA '$caName' in DER format already exists"
         return 1
     elif [[ ! -f "$CA_ROOT/$caName.csr" ]]; then
         echo "Error: certificate signing request for CA '$caName' does not exist"
@@ -201,11 +205,14 @@ function selfsignCA()
         rm -f "$outFile"
         return 1
     fi
+
+	# Convert certificate to DER format for publishing
+	openssl x509 -in "$outFile" -out "$outFileDER" -outform der
 }
 
 # Sign an existing CA certificate with the private private key of another CA.
-# The signed certificate is placed directly under ca/. If the certificate
-# already exists, the process will be aborted.
+# The signed certificate is placed directly under ca/ (in PEM and DER format).
+# If the certificate already exists, the process will be aborted.
 #
 # This function expects a OpenSSL configuration file for the signing CA (i.e.
 # 'parentCaName') to exist with the name conf/ca.[parentCaName].conf.
@@ -236,8 +243,8 @@ function signCA()
     elif [[ -f "$outFile" ]]; then
         echo "Error: certificate file for CA '$caName' already exists"
         return 1
-    elif [[ -f "$outChainFile" ]]; then
-        echo "Error: certificate chain file for CA '$caName' already exists"
+    elif [[ -f "$outFileDER" ]]; then
+        echo "Error: certificate file for CA '$caName' in DER format already exists"
         return 1
     elif [[ ! -f "$CA_ROOT/$caName.csr" ]]; then
         echo "Error: certificate signing request for CA '$caName' does not exist"
@@ -256,8 +263,8 @@ function signCA()
         return 1
     fi
 
-    # Create PEM bundle
-    cat "$outFile" "$CA_ROOT/$parentCaName.crt" > "$outChainFile"
+	# Convert certificate to DER format for publishing
+	openssl x509 -in "$outFile" -out "$outFileDER" -outform der
 }
 
 
@@ -275,7 +282,8 @@ function createCRL()
 {
     local caName="$1"
     local caConf="$CNF_ROOT/ca.$caName.conf"
-    local outFile="$CRL_ROOT/$caName.crl"
+    local outFile="$CRL_ROOT/$caName.pem.crl"
+    local outFileDER="$CRL_ROOT/$caName.crl"
 
     if [[ $# -ne 1 ]]; then
         echo "Usage: ${FUNCNAME[0]} caName"
@@ -289,12 +297,18 @@ function createCRL()
     elif [[ -f "$outFile" ]]; then
         echo "Error: certificate revocation list for CA '$caName' already exists"
         return 1
+    elif [[ -f "$outFileDER" ]]; then
+        echo "Error: certificate revocation list for CA '$caName' in DER format already exists"
+        return 1
     fi
 
     mkdir -p "$CRL_ROOT"
 
     # Create initial CRL
     openssl ca -gencrl -config "$caConf" -out "$outFile"
+
+	# Convert revocation list to DER format for publishing
+	openssl crl -in "$outFile" -out "$outFileDER" -outform der
 }
 
 
