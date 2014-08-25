@@ -229,7 +229,7 @@ function signCA()
     local parentCaName="$2"
     local parentCaConf="$CNF_ROOT/ca.$parentCaName.conf"
     local outFile="$CA_ROOT/$caName.crt"
-    local outChainFile="$CA_ROOT/$caName-chain.crt"
+    local outFileDER="$CA_ROOT/$caName.cer"
 
     if [[ $# -ne 2 ]]; then
         echo "Usage: ${FUNCNAME[0]} caName parentCaName"
