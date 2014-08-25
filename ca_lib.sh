@@ -57,9 +57,9 @@ function cahelp()
     else
         echo
         cat "$self" | tail -n +3 |
-            sed -E '/^\{/,/^\}/d' |     # remove function bodies
-            sed -E '/^(\[|\#\!)/d' |    # remove the variable section
-            sed -nE '/./,/^$/p'         # remove duplicate blank lines
+            sed -E '/^\{/,/^\}/d' |             # remove function bodies
+            sed -E '/^(\[|\#\!|echo)/d' |       # remove the variable section
+            sed -nE '/./,/^$/p'                 # remove duplicate blank lines
     fi
 
     echo
@@ -191,7 +191,7 @@ function selfsignCA()
     fi
 
     # Create CA certificate
-    openssl ca -selfsign -config "$caConf" -in "$CA_ROOT/$caName.csr" -out "$outFile" -extensions root_ca_ext -days 3650
+    openssl ca -selfsign -config "$caConf" -in "$CA_ROOT/$caName.csr" -out "$outFile" -extensions root_ca_ext -startdate "${START_DATE}000000Z" -enddate "${END_DATE}235959Z"
 
     if [[ ! -s "$outFile" ]]; then
         # File is zero-sized!
@@ -326,7 +326,7 @@ function createClientKey()
     elif [[ ! -f "$caConf" ]]; then
         echo "Error: the CA configuration '$caConf' does not exist"
         return 1
-    elif [[ -f "$outFile" ]]; then
+    elif [[ -f "$outKey" ]]; then
         echo "Error: client key '$certName' already exists"
         return 1
     fi
@@ -335,7 +335,44 @@ function createClientKey()
 
     openssl genrsa $ENCRYPT_KEYS -out "$outKey" $DEFAULT_KEYSIZE
 
-    openssl req -new -config "$caConf" -key "$outKey" -out "$outCsr"
+    createClientCertificate "$certName" "$certName" "$caName"
+}
+
+
+# Create a new certificate signing request for an existing key.
+#
+# For creating a proper signing request, this function expects an
+# OpenSSL configuration file (of the CA to be used for signing) to
+# exist with the name conf/req.[caName].conf
+#
+# @param keyName  The name of the existing private key.
+# @param certName The name of the certificate to be created.
+# @param caName   The name of the CA to be used for signing later.
+#
+function createClientCertificate()
+{
+    local keyName="$1"
+    local certName="$2"
+    local caName="$3"
+    local caConf="$CNF_ROOT/req.$caName.conf"
+    local certKey="$CERT_ROOT/$keyName.pem"
+    local outCsr="$CERT_ROOT/$certName.csr"
+
+    if [[ $# -ne 3 ]]; then
+        echo "Usage: ${FUNCNAME[0]} keyName certName caName"
+        echo ""
+        cahelp createClientKey
+        echo "Run 'cahelp' for a documentation on all available functions"
+        return 1
+    elif [[ ! -f "$caConf" ]]; then
+        echo "Error: the CA configuration '$caConf' does not exist"
+        return 1
+    elif [[ ! -f "$certKey" ]]; then
+        echo "Error: client key '$certName' does not exist"
+        return 1
+    fi
+
+    openssl req -new -config "$caConf" -key "$certKey" -out "$outCsr"
 }
 
 
@@ -394,17 +431,17 @@ function signCertificate()
     if [[ -f "$CERT_ROOT/$certName.pem" ]]; then
         # Create PEM bundle
         cat "$CERT_ROOT/$certName.pem" "$outFile" > "$outPEMBundleFile"
+    else
+        echo ""
+        echo "Creating a PKCS#12 bundle now. This will prompt for the password for the"
+        echo "private key. If that is not desired or the private key is not available,"
+        echo "you may exit the process by pressing Ctrl+C."
+        echo "To create the PKCS#12 bundle at a later time, run"
+        echo "  createPKCS12 $certName $caName"
+        echo ""
+
+        createPKCS12 $certName $caName
     fi
-
-    echo ""
-    echo "Creating a PKCS#12 bundle now. This will prompt for the password for the"
-    echo "private key. If that is not desired or the private key is not available,"
-    echo "you may exit the process by pressing Ctrl+C."
-    echo "To create the PKCS#12 bundle at a later time, run"
-    echo "  createPKCS12 $certName $caName"
-    echo ""
-
-    createPKCS12 $certName $caName
 }
 
 
