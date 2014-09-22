@@ -302,6 +302,7 @@ function signCA()
     local parentCaName="$2"
     local parentCaConf="$CNF_ROOT/ca.$parentCaName.conf"
     local outFile="$CA_ROOT/$caName.crt"
+    local outFileChain="$CA_ROOT/$caName-chain.crt"
     local outFileDER="$CA_ROOT/$caName.cer"
 
     if [[ $# -ne 2 ]]; then
@@ -336,7 +337,14 @@ function signCA()
         return 1
     fi
 
-    # Convert certificate to DER format for publishing
+    # Create chain of certificates
+    if [[ -f "$CA_ROOT/$caName-chain.crt" ]]; then
+        cat "$outFile" "$CA_ROOT/$caName-chain.crt" > "$outFileChain"
+    else
+        cat "$outFile" "$CA_ROOT/$caName.crt" > "$outFileChain"
+    fi
+
+    # Convert chain-certificate to DER format for publishing
     openssl x509 -in "$outFile" -out "$outFileDER" -outform der
 }
 
@@ -574,7 +582,7 @@ function createPKCS12()
 
     # Create PKCS#12 bundle
     if [[ -f "$caCertChain" ]]; then
-        openssl pkcs12 -export -inkey "$certKey" -in "$certFile" -certfile "$CA_ROOT/$caName-chain.crt" -out "$outPKCSBundleFile"
+        openssl pkcs12 -export -chain -inkey "$certKey" -in "$certFile" -certfile "$CA_ROOT/$caName-chain.crt" -out "$outPKCSBundleFile"
     else
         openssl pkcs12 -export -inkey "$certKey" -in "$certFile" -out "$outPKCSBundleFile"
     fi
