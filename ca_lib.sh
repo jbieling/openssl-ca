@@ -15,6 +15,7 @@
 [ -z "$START_DATE"    ] && START_DATE=
 [ -z "$END_DATE"    ] && END_DATE=
 
+SELF=`readlink -f ${BASH_SOURCE[0]}`
 
 echo ""
 echo "Setting up ca_lib."
@@ -45,7 +46,7 @@ echo ""
 # Prints all functions and their documentation.
 function cahelp()
 {
-    local self="${BASH_SOURCE[0]}"
+    local self="$SELF"
 
     if [[ $# -eq 1 ]]; then
         cat "$self" | tail -n +3 |
@@ -58,7 +59,7 @@ function cahelp()
         echo
         cat "$self" | tail -n +3 |
             sed -E '/^\{/,/^\}/d' |             # remove function bodies
-            sed -E '/^(\[|\#\!|echo)/d' |       # remove the variable section
+            sed -E '/^(\[|\#\!|echo|SELF)/d' |  # remove the variable section
             sed -nE '/./,/^$/p'                 # remove duplicate blank lines
     fi
 
@@ -96,12 +97,84 @@ function setCertValidity()
     firstLoop=1
     while [[ ! "${END_DATE}" =~ ^([0-9][0-9])(0[0-9]|1[012])([012][0-9]|3[01])$ || $END_DATE -lt $START_DATE || $firstLoop -eq 1 ]]; do
         firstLoop=0
-        END_DATE=$((inputStartYY+DEFAULT_EXPIRY_YEARS))
-        END_DATE="$END_DATE$inputStartMM$inputStartDD"
+        if [[ ! "${END_DATE}" =~ ^([0-9][0-9])(0[0-9]|1[012])([012][0-9]|3[01])$ || $END_DATE -lt $START_DATE ]]; then
+            END_DATE=$((inputStartYY+DEFAULT_EXPIRY_YEARS))
+            END_DATE="$END_DATE$inputStartMM$inputStartDD"
+        fi
 
         read -p "Not valid after (YYMMDD) [${END_DATE}]: " inputEndDate
         END_DATE=${inputEndDate:-$END_DATE}
     done
+}
+
+
+# Display the details of a given certificate.
+#
+# @param certName   The name of the certificate. This parameter may be a
+#                   file name or the name of a certificate inside the cert/
+#                   directory.
+#
+function showCertificate()
+{
+    local certName="$1"
+    local certFile="$certName"
+
+    if [[ ! -f "$certFile" ]]; then
+        certFile="cert/$certFile.crt"
+    fi
+
+    if [[ $# -ne 1 ]]; then
+        echo "Usage: ${FUNCNAME[0]} certName"
+        echo ""
+	cahelp showCertificate
+        echo "Run 'cahelp' for a documentation on all available functions"
+        return 1
+    elif [[ ! -f "$certFile" ]]; then
+        echo "Error: the certificate '$certName' does not exist"
+        return 1
+    fi
+
+    openssl x509 -text -in "$certFile" -noout
+}
+
+
+# Copy all public certificate files to a given location. The certificates
+# will be grouped in CA and user certificates. The former are stored in a
+# subdirectory "ca", the latter are stored in a subdirectory "cert".
+#
+# No certificates will be overwritten without your permission.
+#
+# @param destPath   The destination path to copy the certificates to.
+#
+function copyCertificates()
+{
+    local destPath="$1"
+
+    if [[ $# -ne 1 ]]; then
+        echo "Usage: ${FUNCNAME[0]} destPath"
+        echo ""
+        cahelp copyCertificates
+        echo "Run 'cahelp' for a documentation on all available functions"
+        return 1
+    elif [[ ! -d "$destPath" ]]; then
+        echo "Error: the destination path does not exist"
+        return 1
+    fi
+
+    sudo mkdir -p "$destPath/ca" &> /dev/null
+    if [[ $? -ne 0 ]]; then
+        echo "Error: cannot create subdirectory in destination path"
+        return 1
+    fi
+
+    sudo mkdir -p "$destPath/cert" &> /dev/null
+    if [[ $? -ne 0 ]]; then
+        echo "Error: cannot create subdirectory in destination path"
+        return 1
+    fi
+
+    sudo cp -i ca/*.crt ca/*.cer "$destPath/ca"
+    sudo cp -i cert/*.crt "$destPath/cert"
 }
 
 
@@ -206,8 +279,8 @@ function selfsignCA()
         return 1
     fi
 
-	# Convert certificate to DER format for publishing
-	openssl x509 -in "$outFile" -out "$outFileDER" -outform der
+    # Convert certificate to DER format for publishing
+    openssl x509 -in "$outFile" -out "$outFileDER" -outform der
 }
 
 # Sign an existing CA certificate with the private private key of another CA.
@@ -263,8 +336,8 @@ function signCA()
         return 1
     fi
 
-	# Convert certificate to DER format for publishing
-	openssl x509 -in "$outFile" -out "$outFileDER" -outform der
+    # Convert certificate to DER format for publishing
+    openssl x509 -in "$outFile" -out "$outFileDER" -outform der
 }
 
 
@@ -307,8 +380,8 @@ function createCRL()
     # Create initial CRL
     openssl ca -gencrl -config "$caConf" -out "$outFile"
 
-	# Convert revocation list to DER format for publishing
-	openssl crl -in "$outFile" -out "$outFileDER" -outform der
+    # Convert revocation list to DER format for publishing
+    openssl crl -in "$outFile" -out "$outFileDER" -outform der
 }
 
 
@@ -447,7 +520,7 @@ function signCertificate()
     if [[ -f "$CERT_ROOT/$certName.pem" ]]; then
         # Create PEM bundle
         cat "$CERT_ROOT/$certName.pem" "$outFile" > "$outPEMBundleFile"
-    else
+
         echo ""
         echo "Creating a PKCS#12 bundle now. This will prompt for the password for the"
         echo "private key. If that is not desired or the private key is not available,"
@@ -504,6 +577,13 @@ function createPKCS12()
         openssl pkcs12 -export -inkey "$certKey" -in "$certFile" -certfile "$CA_ROOT/$caName-chain.crt" -out "$outPKCSBundleFile"
     else
         openssl pkcs12 -export -inkey "$certKey" -in "$certFile" -out "$outPKCSBundleFile"
+    fi
+
+    if [[ ! -s "$outPKCSBundleFile" ]]; then
+        # File is zero-sized!
+        echo "Error: certificate bundle not created"
+        rm -f "$outPKCSBundleFile"
+        return 1
     fi
 }
 
