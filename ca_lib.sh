@@ -126,7 +126,7 @@ function showCertificate()
     if [[ $# -ne 1 ]]; then
         echo "Usage: ${FUNCNAME[0]} certName"
         echo ""
-	cahelp showCertificate
+        cahelp showCertificate
         echo "Run 'cahelp' for a documentation on all available functions"
         return 1
     elif [[ ! -f "$certFile" ]]; then
@@ -224,6 +224,7 @@ function createCA()
     echo 01 > "$CA_ROOT/$caName/db/$caName.crl.srl"
 
     # Create CA request
+    export CA_NAME="$caName"
     openssl req -new -config "$caConf" -out "$CA_ROOT/$caName.csr" -keyout "$outFile"
 }
 
@@ -271,6 +272,7 @@ function selfsignCA()
     setCertValidity
 
     # Create CA certificate
+    export CA_NAME="$caName"
     openssl ca -selfsign -config "$caConf" -in "$CA_ROOT/$caName.csr" -out "$outFile" -extensions root_ca_ext -startdate "${START_DATE}000000Z" -enddate "${END_DATE}235959Z"
 
     if [[ ! -s "$outFile" ]]; then
@@ -329,6 +331,7 @@ function signCA()
     setCertValidity
 
     # Create CA certificate
+    export CA_NAME="$parentCaName"
     openssl ca -config "$parentCaConf" -in "$CA_ROOT/$caName.csr" -out "$outFile" -extensions signing_ca_ext -startdate "${START_DATE}000000Z" -enddate "${END_DATE}235959Z"
 
     if [[ ! -s "$outFile" ]]; then
@@ -387,6 +390,7 @@ function createCRL()
     mkdir -p "$CRL_ROOT"
 
     # Create initial CRL
+    export CA_NAME="$caName"
     openssl ca -gencrl -config "$caConf" -out "$outFile"
 
     # Convert revocation list to DER format for publishing
@@ -511,13 +515,14 @@ function signCertificate()
         echo "Error: certificate signing request for '$certName' does not exist"
         return 1
     elif [[ ! -f "$CERT_ROOT/$certName.pem" ]]; then
-        echo "Warning: private key for '$certName' does not exist, bundle will not be created"
+        echo "Warning: private key for '$certName' does not exist, a bundle will not be created"
     fi
 
     setCertValidity
 
     # Create certificate
-    openssl ca -config "$caConf" -in "$CERT_ROOT/$certName.csr" -out "$outFile" -extensions ${caName}_ext -startdate "${START_DATE}000000Z" -enddate "${END_DATE}235959Z"
+    export CA_NAME="$caName"
+    openssl ca -config "$caConf" -in "$CERT_ROOT/$certName.csr" -out "$outFile" -startdate "${START_DATE}000000Z" -enddate "${END_DATE}235959Z"
 
     if [[ ! -s "$outFile" ]]; then
         # File is zero-sized!
@@ -578,7 +583,7 @@ function createPKCS12()
         echo "Error: private key for '$certName' does not exist"
         return 1
     elif [[ ! -f "$caCertChain" ]]; then
-        echo "Warning: certificate chain for the ca does not exist, skipping"
+        echo "Warning: certificate chain for the ca does not exist, certificate chain will not be included in bundle"
     fi
 
     # Create PKCS#12 bundle
@@ -629,6 +634,7 @@ function revokeCertificate()
     fi
 
     # Revoke certificate
+    export CA_NAME="$caName"
     openssl ca -config "$caConf" -revoke "$CA_ROOT/$caName/$certNumber.pem" -crl_reason keyCompromise
 
     # Create CRL
