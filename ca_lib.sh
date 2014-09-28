@@ -138,9 +138,10 @@ function showCertificate()
 }
 
 
-# Copy all public certificate files to a given location. The certificates
-# will be grouped in CA and user certificates. The former are stored in a
-# subdirectory "ca", the latter are stored in a subdirectory "cert".
+# Copy all public certificate files and certificate signing requests to a
+# given location. The files will be grouped in CA and user certificates.
+# The former are stored in a subdirectory "ca", the latter are stored in
+# a subdirectory "cert".
 #
 # No certificates will be overwritten without your permission.
 #
@@ -173,8 +174,8 @@ function copyCertificates()
         return 1
     fi
 
-    sudo cp -i ca/*.crt ca/*.cer "$destPath/ca"
-    sudo cp -i cert/*.crt "$destPath/cert"
+    sudo cp -i ca/*.crt ca/*.cer ca/*.csr "$destPath/ca"
+    sudo cp -i cert/*.crt cert/*.csr "$destPath/cert"
 }
 
 
