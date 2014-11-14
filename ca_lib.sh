@@ -506,6 +506,7 @@ function createClientCertificate()
 # @param certName The name of the certificate signing request (without
 #                 extension)
 # @param caName   The name of the CA to be used for signing.
+# @param caConf   The name of the CA configuration. Defaults to caName.
 #
 function signCertificate()
 {
@@ -515,8 +516,12 @@ function signCertificate()
     local outFile="$CERT_ROOT/$certName.crt"
     local outPEMBundleFile="$CERT_ROOT/$certName.key+crt"
 
-    if [[ $# -ne 2 ]]; then
-        echo "Usage: ${FUNCNAME[0]} certName caName"
+    if [[ $# -eq 3 ]]; then
+        caConf="$CNF_ROOT/ca.$3.conf"
+    fi
+
+    if [[ $# -ne 2 && $# -ne 3 ]]; then
+        echo "Usage: ${FUNCNAME[0]} certName caName [caConf]"
         echo ""
         cahelp signCertificate
         echo "Run 'cahelp' for a documentation on all available functions"
