@@ -501,7 +501,7 @@ function createClientCertificate()
 # or certificate bundles already exist, the process will be aborted.
 #
 # This function expects an OpenSSL configuration file (of the CA to be
-# used for signing) to exist with the name conf/ca.[caName].conf
+# used for signing) to exist with the name conf/ca.[caConf].conf
 #
 # @param certName The name of the certificate signing request (without
 #                 extension)
