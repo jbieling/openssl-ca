@@ -1,5 +1,11 @@
 #!/bin/bash
 
+#
+# Author:   $Author$
+# Revision: $Rev$
+# Date:     $Date$
+#
+
 
 # Set variables, if they have not been set yet
 [ -z "$CNF_ROOT" ] && export CNF_ROOT=./conf
