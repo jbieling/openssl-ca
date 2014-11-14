@@ -1,9 +1,9 @@
 #!/bin/bash
 
 #
-# Author:   $Author$
-# Revision: $Rev$
-# Date:     $Date$
+# $Author$
+# $Rev$
+# $Date$
 #
 
 
