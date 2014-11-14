@@ -1,7 +1,7 @@
 #!/bin/bash
 
 
-#! Set variables, if they have not been set yet
+# Set variables, if they have not been set yet
 [ -z "$CNF_ROOT" ] && export CNF_ROOT=./conf
 [ -z "$CA_ROOT"  ] && export CA_ROOT=./ca
 [ -z "$CRL_ROOT" ] && export CRL_ROOT=./crl
@@ -15,7 +15,11 @@
 [ -z "$START_DATE"    ] && START_DATE=
 [ -z "$END_DATE"    ] && END_DATE=
 
-SELF=`readlink -f ${BASH_SOURCE[0]}`
+if [[ `uname` == "Darwin" ]]; then
+  SELF=`python -c "import os,sys;print os.path.realpath(\"${BASH_SOURCE[0]}\")" c`
+else
+  SELF=`readlink -f ${BASH_SOURCE[0]}`
+fi
 
 echo ""
 echo "Setting up ca_lib."
@@ -41,6 +45,7 @@ echo "                    request must match those of the CA. The latter was"
 echo "                    specified in the ca_dn section."
 echo ""
 
+### Functions
 
 
 # Prints all functions and their documentation.
@@ -49,18 +54,32 @@ function cahelp()
     local self="$SELF"
 
     if [[ $# -eq 1 ]]; then
-        cat "$self" | tail -n +3 |
-            sed -E '/^\{/,/^\}/d' |     # remove function bodies
-            sed -E '/^(\[|\#\!)/d' |    # remove the variable section
-            sed -nE '/./,/^$/p' |       # remove duplicate blank lines
-            sed -nE "/^#/,/^$/{ H; /function $1/{g; p; q;}; /^$/x;};" |     # extract specific function
-            sed -nE "/^function $1/d; /^$/d; s/^#([ ]?.*)$/  \1/;p"         # remove function head and hashes (#)
+
+        if [[ "x$1" == "x--short" ]]; then
+            echo
+            echo "List of functions:"
+            echo
+            cat "$self" |
+                sed -E '/^\#!/,/^\#\#\#/d' |        # remove setup part (above)
+                sed -E '/^#/d' |                    # remove comments
+                sed -E '/^\{/,/^\}/d' |             # remove function bodies
+                sed -E '/^$/d' |                    # remove all blank lines
+                sed -E "s/^function ([a-zA-Z0-9]+)\(\)/  \1/" # print only function names
+        else
+            cat "$self" |
+                sed -E '/^\#!/,/^\#\#\#/d' |        # remove setup part (above)
+                sed -E '/^\{/,/^\}/d' |             # remove function bodies
+                sed -nE '/./,/^$/p' |               # remove duplicate blank lines
+                sed -nE "/^#/,/^$/{ H; /function $1/{g; p; q;}; /^$/x;};" |     # extract specific function
+                sed -nE "/^function $1/d; /^$/d; s/^#([ ]?.*)$/  \1/;p"         # remove function head and hashes (#)
+        fi
+
     else
         echo
-        cat "$self" | tail -n +3 |
-            sed -E '/^\{/,/^\}/d' |             # remove function bodies
-            sed -E '/^(\[|\#\!|echo|SELF)/d' |  # remove the variable section
-            sed -nE '/./,/^$/p'                 # remove duplicate blank lines
+        cat "$self" |
+            sed -E '/^\#!/,/^\#\#\#/d' |            # remove setup part (above)
+            sed -E '/^\{/,/^\}/d' |                 # remove function bodies
+            sed -nE '/./,/^$/p'                     # remove duplicate blank lines
     fi
 
     echo
