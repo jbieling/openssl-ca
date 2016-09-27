@@ -670,3 +670,17 @@ function revokeCertificate()
     # Create CRL
     openssl ca -gencrl -config "$caConf" -out "$CRL_ROOT/$caName.crl"
 }
+
+# Lists the expiry dates of all locally stored certificates
+function listCertificateExpiries()
+{
+    for f in cert/*.crt; do
+        if [[ -f "$f" ]]; then
+            certFile="${f:5}"
+            certName="${certFile%.*}"
+            expiryDate=`showCertificate "$certName" | grep "Not After" | sed -e 's/[ ]*Not After[ ]*:[ ]*//'`
+            echo "$expiryDate	${certFile}"
+            (( numCerts=numCerts+1 ))
+        fi
+    done | sort -k4n -k1M -k2n -k3n
+}
