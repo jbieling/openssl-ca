@@ -92,8 +92,8 @@ function cahelp()
 }
 
 
-# Set the validity dates of the next certificate to be signed. The the dates
-# are inclusive, meaning that the the validity starts at 0:00:00 and ends
+# Set the validity dates of the next certificate to be signed. The dates
+# are inclusive, meaning that the validity starts at 0:00:00 and ends
 # at 23:59:59.
 #
 # This function is automatically called before signing a client or CA
@@ -207,7 +207,7 @@ function copyCertificates()
 # Create a new CA key and create the necessary database structure. If the
 # CA key already exists, the process will be aborted.
 #
-# This function expects a OpenSSL configuration file to exist with the
+# This function expects an OpenSSL configuration file to exist with the
 # name conf/ca.[caName].conf.
 #
 # @param caName     The name of the new CA.
